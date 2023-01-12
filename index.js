@@ -39,9 +39,6 @@ async function run() {
       res.send(products);
     });
 
-
-
-
     app.get("/products", async (req, res) => {
       const query = {}
       const cursor = productCollection.find(query);
@@ -57,24 +54,28 @@ async function run() {
       res.send(service);
     });
 
-    // app.get('/booking/:id', async (req, res) => {
-    //   const id = req.params.id;
-    //   const query = { _id: ObjectId(id) };
-    //   const service = await productCollection.findOne(query);
-    //   res.send(service);
-    // });
+    app.get('/booking/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const service = await productCollection.findOne(query);
+      res.send(service);
+    });
 
-    // app.get('/myreview', async (req, res) => {
-    //   let query = {};
-    //   if (req.query.email) {
-    //     query = {
-    //       email: req.query.email
-    //     };
-    //   }
-    //   const cursor = reviewCollection.find(query);
-    //   const myreview = await cursor.toArray();
-    //   res.send(myreview);
-    // });
+  
+
+    app.get('/myProduct', async (req, res) => {
+      let query = {};
+      if (req.query.email) {
+        query = {
+          email: req.query.email
+        };
+      }
+      const cursor = productCollection.find(query);
+      console.log(cursor);
+      const myreview = await cursor.toArray();
+      
+      res.send(myreview);
+    });
 
     // app.get('/review', async (req, res) => {
     //   // const id = req.params.id;
@@ -102,32 +103,32 @@ async function run() {
       res.send(result);
     })
 
-    // app.post('/addService', async (req, res) => {
-    //   const addService = req.body;
-    //   const result = await servicesCollection.insertOne(addService);
-    //   res.send(result);
-    // })
+    app.post('/AddAProduct', async (req, res) => {
+      const addService = req.body;
+      const result = await productCollection.insertOne(addService);
+      res.send(result);
+    })
 
-    // app.put('/review/:id', async (req, res) => {
-    //   const id = req.params.id;
-    //   const status = req.body.status;
-    //   const query = { _id: ObjectId(id) };
-    //   const options = { upsert: true };
-    //   const updatedDoc = {
-    //     $set: {
-    //       status: status
-    //     }
-    //   };
-    //   const result = await reviewCollection.updateOne(query, updatedDoc,options);
-    //   res.send(result);
-    // });
+    app.put('/product/:id', async (req, res) => {
+      const id = req.params.id;
+      const status = req.body.status;
+      const query = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          status: status
+        }
+      };
+      const result = await productCollection.updateOne(query, updatedDoc,options);
+      res.send(result);
+    });
 
-    // app.delete('/review/:id', async (req, res) => {
-    //   const id = req.params.id;
-    //   const query = { _id: ObjectId(id) };
-    //   const result = await reviewCollection.deleteOne(query);
-    //   res.send(result);
-    // })
+    app.delete('/product/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await productCollection.deleteOne(query);
+      res.send(result);
+    })
 
   } finally {
 
