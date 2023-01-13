@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config()
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
@@ -14,12 +15,29 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_Username}:${process.env.DB_Password}@cluster0.molyssj.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+function verifyJWT(req, res, next) {
+  // console.log(req.headers.authorization);
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send('unauthorized access')
+  }
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: 'forbidden access' })
+    }
+    req.decoded = decoded;
+    next();
+  })
+}
+
 
 async function run() {
   try {
     const categoryCollection = client.db("secondUp").collection("category");
     const productCollection = client.db("secondUp").collection("product");
     const bookingCollection = client.db("secondUp").collection("booking");
+    const usersCollection = client.db("secondUp").collection("users");
     
     app.get("/", async (req, res) => {
       const size=parseInt(req.query.size)
@@ -34,15 +52,13 @@ async function run() {
       const category = req.params.name;
       const categoryQuery = { category };
       const products = await productCollection.find(categoryQuery).toArray();
-      console.log(products)
-
       res.send(products);
     });
 
     app.get("/products", async (req, res) => {
-      const query = {}
+      const query ={status:'available'};
       const cursor = productCollection.find(query);
-      const products = await cursor.toArray();
+     const products = await cursor.toArray();
       res.send(products);
     });
    
@@ -58,11 +74,35 @@ async function run() {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const service = await productCollection.findOne(query);
-      res.send(service);
+      // res.send({isavailable:service?.status == 'available'})
+     res.send(service)
     });
 
-  
+    app.put('/booking/:id', async (req, res) => {
+      const id = req.params.id;
+      const status = 'booked';
+      const booking = req.body;
+      const query = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          status: status,
+      title:booking.name,
+      price:booking.price,
+      ctegory:booking.category,
+      name: booking.name,
+      imgURL :booking.imgURL,
+      email:booking.email ,
+      rating: booking.rating,
+      textarea:booking.textarea
+        }
+      };
+      const result = await productCollection.updateOne(query, updatedDoc,options);
+      res.send(result);
+      
+    })
 
+  
     app.get('/myProduct', async (req, res) => {
       let query = {};
       if (req.query.email) {
@@ -71,35 +111,75 @@ async function run() {
         };
       }
       const cursor = productCollection.find(query);
-      console.log(cursor);
-      const myreview = await cursor.toArray();
-      
-      res.send(myreview);
+      const myProduct = await cursor.toArray();
+      res.send(myProduct);
     });
 
-    // app.get('/review', async (req, res) => {
-    //   // const id = req.params.id;
-    //   let query = {};
-    //   if (req.params.id) {
-    //     query = {
-    //       id: req.query.id
-    //     };
-    //   }
-    //   const cursor = reviewCollection.find(query);
-    //   const review = await cursor.toArray();
-    //   res.send(review);
-    // });
-    // app.get('/booking', async (req, res) => {
-    //   const id = req.params.id;
-    //   const query = { _id: ObjectId(id) };
-    //   const service = await productCollection.findOne(query);
-    //   res.send(service);
-    // })
+    app.get('/users', async (req, res) => {
+      const query = {}
+      const user = await usersCollection.find(query).toArray();
+      res.send(user);
+    })
+    app.get('/sellar', async (req, res) => {
+      const query = {usertype:sellar}
+      const user = await usersCollection.find(query).toArray();
+      res.send(user);
+    })
+
+    
+    app.get('/jwt', async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      console.log(user);
+      if (user) {
+        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '3h' });
+        return res.send({ accessToken: token });
+      }
+      res.status(403).send({ accessToken: '' });
+    });
 
 
-    app.post('/booking', async (req, res) => {
-      const booking = req.body;
-      const result = await bookingCollection.insertOne(booking);
+    app.get('/users/admin/:email', async (req, res) => {
+      const email = req.params.email;
+      const filter= {email}
+      const user = await usersCollection.findOne(filter);
+      res.send({isAdmin: user?.role =='admin'});
+     
+    })
+    app.get('/users/user/:email', async (req, res) => {
+      const email = req.params.email;
+      const filter= {email}
+      const user = await usersCollection.findOne(filter);
+      res.send({isAdmin: user?.usertype =='sellar'});
+     
+    })
+
+
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      // console.log(user);
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+
+    app.put('/users/admin/:id',verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const decodedEmail=req.decoded.email;
+      const query = {email: decodedEmail};
+      const user = await usersCollection.findOne(query);
+      if(user.role !== 'admin'){
+        return res.status(403).send({message:'forbidden Access'})
+      }
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          role: 'admin'
+        }
+      }
+      const result = await usersCollection.updateOne(filter, updatedDoc, options);
       res.send(result);
     })
 
@@ -116,7 +196,7 @@ async function run() {
       const options = { upsert: true };
       const updatedDoc = {
         $set: {
-          status: status
+          status: 'available'
         }
       };
       const result = await productCollection.updateOne(query, updatedDoc,options);
@@ -137,8 +217,6 @@ async function run() {
 app.get('/', (req, res) => {
   res.send('Server Runing')
 });
-
-
 
 };
 run().catch(err => console.log(err))
