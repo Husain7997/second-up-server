@@ -114,6 +114,17 @@ async function run() {
       const myProduct = await cursor.toArray();
       res.send(myProduct);
     });
+    app.get('/myordars', async (req, res) => {
+      let query = {};
+      if (req.query.email) {
+        query = {
+          email: req.query.email
+        };
+      }
+      const cursor = productCollection.find(query);
+      const myProduct = await cursor.toArray();
+      res.send(myProduct);
+    });
 
     app.get('/users', async (req, res) => {
       const query = {}
@@ -121,7 +132,12 @@ async function run() {
       res.send(user);
     })
     app.get('/sellar', async (req, res) => {
-      const query = {usertype:sellar}
+      const query = {usertype:'sellar'}
+      const user = await usersCollection.find(query).toArray();
+      res.send(user);
+    })
+    app.get('/bayer', async (req, res) => {
+      const query = {usertype:'bayer'}
       const user = await usersCollection.find(query).toArray();
       res.send(user);
     })
@@ -147,11 +163,11 @@ async function run() {
       res.send({isAdmin: user?.role =='admin'});
      
     })
-    app.get('/users/user/:email', async (req, res) => {
+    app.get('/users/sellar/:email', async (req, res) => {
       const email = req.params.email;
       const filter= {email}
       const user = await usersCollection.findOne(filter);
-      res.send({isAdmin: user?.usertype =='sellar'});
+      res.send({isSellar: user?.usertype =='sellar'});
      
     })
 
@@ -207,6 +223,12 @@ async function run() {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await productCollection.deleteOne(query);
+      res.send(result);
+    })
+    app.delete('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
       res.send(result);
     })
 
